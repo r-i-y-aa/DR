@@ -148,7 +148,7 @@ def load_and_preprocess_image(img_path, target_size=(224, 224)):
 
     return img_array
 
- 
+
 # Function to make a prediction
 def predict_image_class(img_path, model, class_labels):
     # Preprocess the image
