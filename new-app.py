@@ -211,10 +211,10 @@ print(finalCorrect/len(y_val))
 #     predicted_class_label = class_labels[predicted_class_index]
 # #
 #     return predicted_class_label
-# # 
+# #
 # #
 # # # Example usage:
-# # # Define the class labels (make sure these correspond to your actual class labels)
+# # # Define the  class labels (make sure these correspond to your actual class labels)
 # class_labels = ['0', '1']
 # #
 # # # Path to the image you want to predict
