@@ -16,7 +16,7 @@ from sklearn.preprocessing import LabelEncoder
 from tensorflow.keras.callbacks import ModelCheckpoint
 
 # Define paths to your directories
-train_dir = '/Users/riyak/desktop/DR_DATA1/Training'
+train_dir = '/Users/riyak/desktop/DR_DATA2/Training'
 
 # ImageDataGenerator for loading and augmenting images
 train_datagen = ImageDataGenerator(
@@ -54,7 +54,7 @@ y = np.array(y)
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # # Decision Tree Classifier
-tree_model = DecisionTreeClassifier( max_depth=10)
+tree_model = DecisionTreeClassifier( max_depth=100)
 tree_model.fit(X_train, y_train)
 
 # # Make predictions on the validation set
@@ -68,7 +68,7 @@ print(f"Decision Training Tree Accuracy:{train_accuracy_tree:.4f}")
 print(f"Decision Tree Accuracy: {accuracy_tree:.4f}")
 
 # Random Forest Classifier
-forest_model = RandomForestClassifier(n_estimators=5, max_depth=5)
+forest_model = RandomForestClassifier(n_estimators=50, max_depth=100)
 forest_model.fit(X_train, y_train)
 
 # Make predictions on the validation set
@@ -84,19 +84,19 @@ model = Sequential([
     MaxPooling2D((2, 2)),
     Conv2D(128, (3, 3), activation='relu', input_shape=(150, 150, 3)),
     MaxPooling2D((2, 2)),
-    Conv2D(128, (3, 3), activation='relu', input_shape=(150, 150, 3)),
-    MaxPooling2D((2, 2)),
-    Conv2D(128, (3, 3), activation='relu', input_shape=(150, 150, 3)),
-    MaxPooling2D((2, 2)),
     Conv2D(256, (3, 3), activation='relu', input_shape=(150, 150, 3)),
     MaxPooling2D((2, 2)),
+    Conv2D(512, (3, 3), activation='relu', input_shape=(150, 150, 3)),
+    MaxPooling2D((2, 2)),
+    Conv2D(512, (3, 3), activation='relu', input_shape=(150, 150, 3)),
+    MaxPooling2D((2, 2)),
     Flatten(),
-    Dense(128, activation='relu'),
-    Dropout(0.2),
-    Dense(64, activation='relu'),
-    Dropout(0.2),
-    Dense(16, activation='relu'),
-    Dropout(0.2),
+    Dense(512, activation='relu'),
+    Dropout(0.5),
+    Dense(512, activation=  'relu'),
+    Dropout(0.5),
+    Dense(512, activation='relu'),
+    Dropout(0.5),
     Dense(1, activation='sigmoid')  # Binary classification
 ])
 
@@ -116,7 +116,7 @@ model.compile(optimizer=Adam(learning_rate=0.0001), loss='binary_crossentropy', 
 # Train the CNN model with the checkpoint callback
 history = model.fit(
     train_generator,
-    epochs=10,
+    epochs=20,
     # steps_per_epoch=train_generator.samples // train_generator.batch_size,
     # validation_data=validation_generator,  # Assuming you have a validation generator
     # validation_steps=validation_generator.samples // validation_generator.batch_size,
@@ -124,7 +124,7 @@ history = model.fit(
 )
 
 # Save the CNN model
-model.save('/Users/riyak/desktop/DR_DATA1/diabetic_retinopathy_model.h5')
+model.save('/Users/riyak/desktop/DR_DATA2/diabetic_retinopathy_model.h5')
 # Reshape X_val for CNN model prediction (assuming X_val is of shape (num_samples, 150, 150, 3))
 X_val_reshaped = X_val.reshape(-1, 150, 150, 3)
 
