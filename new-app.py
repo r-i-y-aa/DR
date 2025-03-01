@@ -3,225 +3,166 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
-import matplotlib.pyplot as plt
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import train_test_split
 import numpy as np
-from PIL import Image
-import os
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from tensorflow.keras.callbacks import ModelCheckpoint
-
-# Define paths to your directories
+from sklearn.metrics import f1_score
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+from sklearn.metrics import roc_curve, auc
+#added stuff
 train_dir = '/Users/riyak/desktop/DR_DATA2/Training'
 
-# ImageDataGenerator for loading and augmenting images
 train_datagen = ImageDataGenerator(
-    rescale=1./255,               # Normalize images to the range [0, 1]
-    rotation_range=20,            # Randomly rotate images
-    width_shift_range=0.2,        # Randomly shift images horizontally
-    height_shift_range=0.2,       # Randomly shift images vertically
-    shear_range=0.2,              # Randomly apply shearing transformations
-    zoom_range=0.2,               # Randomly zoom into images
-    horizontal_flip=True,         # Randomly flip images horizontally
-    fill_mode='nearest'           # Strategy for filling in newly created pixels
+   rescale=1./255,
+   rotation_range=20,
+   width_shift_range=0.2,
+   height_shift_range=0.2,
+   shear_range=0.2,
+   zoom_range=0.2,
+   horizontal_flip=True,
+   fill_mode='nearest'
 )
 
-# Create a generator for the training images
 train_generator = train_datagen.flow_from_directory(
-    train_dir,
-    target_size=(150, 150),       # Resize images to 150x150
-    batch_size=32,                # Number of images to return in each batch
-    class_mode='binary'           # Binary classification mode
+   train_dir,
+   target_size=(150, 150),
+   batch_size=32,
+   class_mode='binary'
 )
 
-# Flatten the images for Decision Tree and Random Forest (this works if you have data as numpy arrays)
 X, y = [], []
-for i in range(len(train_generator)):
-    img_batch, label_batch = next(train_generator)  # Use next() correctly here
-    for img, label in zip(img_batch, label_batch):
-        X.append(img.flatten())  # Flatten each image
-        y.append(label)
+for i in range(10):
+   img_batch, label_batch = next(train_generator)
+   for img, label in zip(img_batch, label_batch):
+       X.append(img)
+       y.append(label)
 
-# Convert to numpy arrays
 X = np.array(X)
 y = np.array(y)
 
-# Split the dataset for decision tree and random forest
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# # Decision Tree Classifier
-tree_model = DecisionTreeClassifier( max_depth=100)
-tree_model.fit(X_train, y_train)
+X_train = X_train.reshape(-1, 150, 150, 3)
+X_val = X_val.reshape(-1, 150, 150, 3)
 
-# # Make predictions on the validation set
-y_test_tree = tree_model.predict(X_val)
-y_train_tree = tree_model.predict(X_train)
-# Calculate the accuracy for Decision Tree
-train_accuracy_tree = accuracy_score(y_train, y_train_tree)
+tree_model = DecisionTreeClassifier(max_depth=200)
+tree_model.fit(X_train.reshape(len(X_train), -1), y_train)
+
+y_test_tree = tree_model.predict(X_val.reshape(len(X_val), -1))
+train_accuracy_tree = accuracy_score(y_train, tree_model.predict(X_train.reshape(len(X_train), -1)))
 accuracy_tree = accuracy_score(y_val, y_test_tree)
 
 print(f"Decision Training Tree Accuracy:{train_accuracy_tree:.4f}")
 print(f"Decision Tree Accuracy: {accuracy_tree:.4f}")
 
-# Random Forest Classifier
-forest_model = RandomForestClassifier(n_estimators=50, max_depth=100)
-forest_model.fit(X_train, y_train)
+forest_model = RandomForestClassifier(n_estimators=100, max_depth=100)
+forest_model.fit(X_train.reshape(len(X_train), -1), y_train)
 
-# Make predictions on the validation set
-y_test_forest = forest_model.predict(X_val)
-
-# Calculate the accuracy for Random Forest
+y_test_forest = forest_model.predict(X_val.reshape(len(X_val), -1))
 accuracy_forest = accuracy_score(y_val, y_test_forest)
+
 print(f"Random Forest Accuracy: {accuracy_forest:.4f}")
 
-# CNN Model Definition (for comparison)
 model = Sequential([
-    Conv2D(64, (3, 3), activation='relu', input_shape=(150, 150, 3)),
-    MaxPooling2D((2, 2)),
-    Conv2D(128, (3, 3), activation='relu', input_shape=(150, 150, 3)),
-    MaxPooling2D((2, 2)),
-    Conv2D(256, (3, 3), activation='relu', input_shape=(150, 150, 3)),
-    MaxPooling2D((2, 2)),
-    Conv2D(512, (3, 3), activation='relu', input_shape=(150, 150, 3)),
-    MaxPooling2D((2, 2)),
-    Conv2D(512, (3, 3), activation='relu', input_shape=(150, 150, 3)),
-    MaxPooling2D((2, 2)),
-    Flatten(),
-    Dense(512, activation='relu'),
-    Dropout(0.5),
-    Dense(512, activation=  'relu'),
-    Dropout(0.5),
-    Dense(512, activation='relu'),
-    Dropout(0.5),
-    Dense(1, activation='sigmoid')  # Binary classification
+   Conv2D(64, (3, 3), activation='relu', input_shape=(150, 150, 3)),
+   MaxPooling2D((2, 2)),
+   Conv2D(64, (3, 3), activation='relu'),
+   MaxPooling2D((2, 2)),
+   Conv2D(128, (3, 3), activation='relu'),
+   MaxPooling2D((2, 2)),
+   Conv2D(128, (3, 3), activation='relu'),
+   MaxPooling2D((2, 2)),
+   Flatten(),
+   Dense(512, activation='relu'),
+   Dropout(0.2),
+   Dense(512, activation='relu'),
+   Dropout(0.2),
+   Dense(1, activation='sigmoid')
 ])
 
-# Define the callback to save the best model based on validation accuracy or loss
-# checkpoint = ModelCheckpoint(
-#     'best_model.h5',          # Path to save the best model
-#     monitor='val_loss',        # Metric to monitor (you can also use 'val_accuracy')
-#     save_best_only=True,       # Save only the best model
-#     mode='min',                # 'min' for minimizing the loss, 'max' for maximizing accuracy
-#     verbose=1                  # Verbosity mode
-# )
-#Prints number of parameters the model has
-model.summary()
-# Compile the model
-model.compile(optimizer=Adam(learning_rate=0.0001), loss='binary_crossentropy', metrics=['accuracy'])
+model.compile(optimizer=Adam(learning_rate=0.001), loss='binary_crossentropy', metrics=['accuracy'])
 
-# Train the CNN model with the checkpoint callback
 history = model.fit(
-    train_generator,
-    epochs=20,
-    # steps_per_epoch=train_generator.samples // train_generator.batch_size,
-    # validation_data=validation_generator,  # Assuming you have a validation generator
-    # validation_steps=validation_generator.samples // validation_generator.batch_size,
-    # callbacks=[checkpoint]  # Include the checkpoint callback here
+   X_train, y_train,
+   validation_data=(X_val, y_val),
+   epochs=10,
+   batch_size=32
 )
 
-# Save the CNN model
 model.save('/Users/riyak/desktop/DR_DATA2/diabetic_retinopathy_model.h5')
-# Reshape X_val for CNN model prediction (assuming X_val is of shape (num_samples, 150, 150, 3))
-X_val_reshaped = X_val.reshape(-1, 150, 150, 3)
 
-# Predict with CNN model
-CNN_model = model.predict(X_val_reshaped)
-CNN_model = CNN_model.flatten()  # Flatten to align with y_test_tree and y_test_forest
+CNN_model = model.predict(X_val)
+rounded_predictions = (CNN_model > 0.5).astype(int)
+print("CNN Model f1 score:", f1_score(y_val, rounded_predictions))
+print("Decision Tree f1 score:", f1_score(y_val, y_test_tree))
+print("Random Forest f1 score:", f1_score(y_val, y_test_forest))
 
-# Corrected ensemble prediction loop
-w1 = 1/3
-w2 = 1/3
-w3 = 1/3
+y_prob_tree = tree_model.predict_proba(X_val.reshape(len(X_val), -1))[:, 1]
+y_prob_forest = forest_model.predict_proba(X_val.reshape(len(X_val), -1))[:, 1]
+y_prob_CNN = CNN_model.flatten()
+
+fpr_tree, tpr_tree, _ = roc_curve(y_val, y_prob_tree)
+fpr_forest, tpr_forest, _ = roc_curve(y_val, y_prob_forest)
+fpr_CNN, tpr_CNN, _ = roc_curve(y_val, y_prob_CNN)
+
+roc_auc_tree = auc(fpr_tree, tpr_tree)
+roc_auc_forest = auc(fpr_forest, tpr_forest)
+roc_auc_CNN = auc(fpr_CNN, tpr_CNN)
+
+plt.figure(figsize=(10, 8))
+plt.plot(fpr_tree, tpr_tree, color='darkorange', lw=2, label=f'Decision Tree (AUC = {roc_auc_tree:.2f})')
+plt.plot(fpr_forest, tpr_forest, color='green', lw=2, label=f'Random Forest (AUC = {roc_auc_forest:.2f})')
+plt.plot(fpr_CNN, tpr_CNN, color='blue', lw=2, label=f'CNN (AUC = {roc_auc_CNN:.2f})')
+plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+
+plt.title('Receiver Operating Characteristic (ROC) Curve')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.legend(loc='lower right')
+plt.show()
+
+w1, w2, w3 = 1/3, 1/3, 1/3
 finalCorrect = 0
+weightList = []
+
 for i in range(len(X_val)):
-    if y_test_tree[i] != y_val[i]:
-        w1 /= 2
-    if y_test_forest[i] != y_val[i]:
-        w2 /= 2
-    if CNN_model[i] != y_val[i]:
-        w3 /= 2
+   if y_test_tree[i] != y_val[i]:
+       w1 /= 2
+   if y_test_forest[i] != y_val[i]:
+       w2 /= 2
+   if CNN_model[i] != y_val[i]:
+       w3 /= 2
 
-    # Normalize weights
-    sum_w = w1 + w2 + w3
-    w1 /= sum_w
-    w2 /= sum_w
-    w3 /= sum_w
+   sum_w = w1 + w2 + w3
+   w1 /= sum_w
+   w2 /= sum_w
+   w3 /= sum_w
 
-    # Ensemble prediction
-    y1 = y_test_tree[i]
-    y2 = y_test_forest[i]
-    y3 = CNN_model[i]
-    pred = w1 * y1 + w2 * y2 + w3 * y3
+   pred = w1 * y_test_tree[i] + w2 * y_test_forest[i] + w3 * CNN_model[i]
+   pred = 1 if pred > 0.5 else 0
 
-    # Threshold for binary classification
-    pred = 1 if pred > 0.5 else 0
+   if pred == y_val[i]:
+       finalCorrect += 1
+   weightList.append(pred)
 
-    if pred==y_val[i]:
-        finalCorrect+=1
-    print(pred, y_val[i])
-    print(w1, w2, w3)
+cm = confusion_matrix(y_val, weightList)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=["Class 0", "Class 1"])
+disp.plot(cmap=plt.cm.Blues)
+plt.title("Confusion Matrix")
+plt.show()
+
 print(finalCorrect)
-print(finalCorrect/len(y_val))
-#
-# # Plot training accuracy for CNN
-# plt.plot(history.history['accuracy'])
-# plt.title('CNN Model Accuracy')
-# plt.xlabel('Epoch')
-# plt.ylabel('Accuracy')
-# plt.legend(['Train'], loc='upper left')
-# plt.show()
-# #
-# Function to load and preprocess an image
-# def load_and_preprocess_image(img_path, target_size=(224, 224)):
-#     # Load the image
-#     img = Image.open(img_path)
-# #
-# #     # Resize the image to match the input shape expected by the model
-#     img = img.resize(target_size)
-# #
-# #     # Convert the image to a NumPy array
-#     img_array = np.array(img) / 255.0  # Normalize pixel values to [0, 1]
-# #
-# #     # If the image has only one channel (grayscale), convert it to 3 channels (RGB)
-#     if len(img_array.shape) == 2:
-#         img_array = np.stack((img_array,) * 3, axis=-1)
-# #
-# #     # Add a batch dimension (as the model expects batches of images, even for a single image)
-#     img_array = np.expand_dims(img_array, axis=0)
-#
-#     return img_array
-#
-# #
-# # # Function to make a prediction
-# def predict_image_class(img_path, model, class_labels):
-#     # Preprocess the image
-#     img_array = load_and_preprocess_image(img_path)
-#
-# #     # Make a prediction
-#     predictions = model.predict(img_array)
-# #
-# #     # Get the index of the highest predicted class
-#     predicted_class_index = np.argmax(predictions)
-# #
-# #     # Get the class label
-#     predicted_class_label = class_labels[predicted_class_index]
-# #
-#     return predicted_class_label
-# #
-# #
-# # # Example usage:
-# # # Define the  class labels (make sure these correspond to your actual class labels)
-# class_labels = ['0', '1']
-# #
-# # # Path to the image you want to predict
-# image_path = '/Users/riyak/desktop/DR_DATA1/Training/DR/15_left.jpeg'
-# #
-# # # Get the predicted class
-# predicted_class = predict_image_class(image_path, model, class_labels)
-# #
-# print(f"The predicted class is: {predicted_class}")
+print(finalCorrect / len(y_val))
+print(w1,w2,w3)
+
+plt.plot(history.history['accuracy'])
+plt.title('CNN Model Accuracy')
+plt.xlabel('Epoch')
+plt.ylabel('Accuracy')
+plt.legend(['Train'], loc='upper left')
+plt.show()
+
 print("Model training complete and saved!")
